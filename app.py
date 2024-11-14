@@ -15,7 +15,7 @@ from email.mime.multipart import MIMEMultipart
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-API_TOKEN = '7894995841:AAE1I2v8T80Rhcr9elwR6SIla32YjlrgnGo'
+API_TOKEN = 'INSERT_YOUR_TOKEN_FROM_@botfather'
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher()
 
@@ -65,7 +65,6 @@ def parse_proxy(proxy_str):
     if not proxy_str or proxy_str.lower() == 'нет':
         return None
     
-    # Разбиваем строку по '://'
     proxy_parts = proxy_str.split('://')
     
     if len(proxy_parts) != 2:
@@ -78,7 +77,7 @@ def parse_proxy(proxy_str):
         raise ValueError("Неправильный формат прокси. Используйте формат ip:port:login:password")
 
     proxy_host = proxy_info[0]
-    proxy_port = int(proxy_info[1])  # Преобразуем порт в число
+    proxy_port = int(proxy_info[1])
     proxy_username = proxy_info[2]
     proxy_password = proxy_info[3]
 
@@ -104,6 +103,7 @@ async def send_email(message: types.Message, state: FSMContext):
         body = lines[3]
 
         smtp_host, smtp_port, smtp_user, smtp_pass = smtp_data
+        smtp_port = int(smtp_port)
         proxy_settings = parse_proxy(proxy_data)
 
         if proxy_settings:
@@ -123,12 +123,17 @@ async def send_email(message: types.Message, state: FSMContext):
         msg["Subject"] = subject
         msg.attach(MIMEText(body, "plain", "utf-8"))
 
-        with smtplib.SMTP(smtp_host, int(smtp_port)) as server:
-            server.starttls()
-            server.login(smtp_user, smtp_pass)
-            server.sendmail(smtp_user, recipient, msg.as_string())
-            status = "✅ Успешно отправлено"
+        if smtp_port == 465:
+            with smtplib.SMTP_SSL(smtp_host, smtp_port) as server:
+                server.login(smtp_user, smtp_pass)
+                server.sendmail(smtp_user, recipient, msg.as_string())
+        else:
+            with smtplib.SMTP(smtp_host, smtp_port) as server:
+                server.starttls()
+                server.login(smtp_user, smtp_pass)
+                server.sendmail(smtp_user, recipient, msg.as_string())
 
+        status = "✅ Успешно отправлено"
         logger.info(f"User: {message.from_user.id}, SMTP: {smtp_host}, Recipient: {recipient}, Subject: {subject}, Message: {body}, Proxy: {proxy_data}")
 
         async with aiosqlite.connect("history.db") as db:
